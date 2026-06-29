@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quiz Game Application</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;400;500;600&display=swap');
+
+  :root {
+    --bg: #1a1b2e;
+    --surface: #16213e;
+    --card: #0f3460;
+    --teal: #00d4aa;
+    --teal-dim: rgba(0,212,170,0.15);
+    --blue: #4a90d9;
+    --red: #e94560;
+    --gold: #f5a623;
+    --text: #e8eaf6;
+    --muted: #8892b0;
+    --correct: #00c896;
+    --wrong: #ff4757;
+    --border: rgba(0,212,170,0.25);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background-image:
+      radial-gradient(ellipse at 10% 20%, rgba(0,212,170,0.08) 0%, transparent 50%),
+      radial-gradient(ellipse at 90% 80%, rgba(74,144,217,0.08) 0%, transparent 50%);
+  }
+
+  .container {
+    width: 100%;
+    max-width: 720px;
+  }
+
+  /* ── SCREEN TRANSITIONS ── */
+  .screen { display: none; animation: fadeIn 0.4s ease; }
+  .screen.active { display: block; }
+  @keyframes fadeIn { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
+
+  /* ── START SCREEN ── */
+  .brand {
+    text-align: center;
+    margin-bottom: 32px;
+  }
+  .brand .task-tag {
+    display: inline-block;
+    border: 1.5px solid var(--red);
+    color: var(--red);
+    font-family: 'Orbitron', monospace;
+    font-size: 11px;
+    letter-spacing: 2px;
+    padding: 4px 14px;
+    margin-bottom: 16px;
+    text-transform: uppercase;
+  }
+  .brand h1 {
+    font-family: 'Orbitron', monospace;
+    font-size: clamp(22px, 5vw, 36px);
+    font-weight: 900;
+    letter-spacing: 2px;
+    color: var(--text);
+    text-transform: uppercase;
+    line-height: 1.2;
+  }
+  .brand p {
+    color: var(--muted);
+    font-size: 14px;
+    margin-top: 10px;
+    line-height: 1.6;
+  }
+
+  .category-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+
+  .cat-card {
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 16px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+  }
+  .cat-card:hover { border-color: var(--teal); background: var(--teal-dim); }
+  .cat-card.selected { border-color: var(--teal); background: var(--teal-dim); box-shadow: 0 0 16px rgba(0,212,170,0.2); }
+  .cat-card .icon { font-size: 28px; margin-bottom: 8px; }
+  .cat-card .name { font-size: 13px; font-weight: 600; color: var(--text); }
+  .cat-card .count { font-size: 11px; color: var(--muted); margin-top: 3px; }
+
+  .mode-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 24px;
+  }
+  .mode-btn {
+    flex: 1;
+    padding: 12px;
+    border-radius: 8px;
+    border: 1.5px solid var(--border);
+    background: var(--surface);
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+  }
+  .mode-btn:hover { border-color: var(--blue); color: var(--text); }
+  .mode-btn.selected { border-color: var(--blue); background: rgba(74,144,217,0.15); color: var(--text); }
+
+  .btn-primary {
+    width: 100%;
+    padding: 16px;
+    border-radius: 10px;
+    border: none;
+    background: linear-gradient(135deg, var(--teal), var(--blue));
+    color: #fff;
+    font-family: 'Orbitron', monospace;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.1s;
+    text-transform: uppercase;
+  }
+  .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+  .btn-primary:active { transform: translateY(0); }
+  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+  /* ── QUIZ SCREEN ── */
+  .quiz-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+  }
+  .quiz-meta {
+    font-size: 12px;
+    color: var(--muted);
+    font-family: 'Orbitron', monospace;
+    letter-spacing: 1px;
+  }
+  .score-live {
+    font-family: 'Orbitron', monospace;
+    font-size: 14px;
+    color: var(--teal);
+    font-weight: 700;
+  }
+
+  .progress-bar {
+    width: 100%;
+    height: 4px;
+    background: var(--surface);
+    border-radius: 4px;
+    margin-bottom: 24px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--teal), var(--blue));
+    border-radius: 4px;
+    transition: width 0.5s ease;
+  }
+
+  .q-type-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--teal-dim);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-size: 11px;
+    color: var(--teal);
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    margin-bottom: 14px;
+    text-transform: uppercase;
+  }
+
+  .question-text {
+    font-size: clamp(16px, 3vw, 20px);
+    font-weight: 600;
+    line-height: 1.5;
+    margin-bottom: 6px;
+    color: var(--text);
+  }
+  .q-hint {
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 20px;
+  }
+
+  /* MCQ options */
+  .options-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  .option-btn {
+    padding: 14px 16px;
+    border-radius: 10px;
+    border: 1.5px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: left;
+    line-height: 1.4;
+  }
+  .option-btn:hover:not(:disabled) { border-color: var(--teal); background: var(--teal-dim); }
+  .option-btn.selected { border-color: var(--blue); background: rgba(74,144,217,0.2); }
+  .option-btn.correct { border-color: var(--correct); background: rgba(0,200,150,0.15); color: var(--correct); }
+  .option-btn.wrong { border-color: var(--wrong); background: rgba(255,71,87,0.15); color: var(--wrong); }
+  .option-btn:disabled { cursor: default; }
+
+  /* Fill in blank */
+  .fill-input {
+    width: 100%;
+    padding: 14px 18px;
+    border-radius: 10px;
+    border: 1.5px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    font-size: 16px;
+    outline: none;
+    transition: border-color 0.2s;
+    margin-bottom: 20px;
+  }
+  .fill-input:focus { border-color: var(--teal); }
+  .fill-input.correct { border-color: var(--correct); }
+  .fill-input.wrong { border-color: var(--wrong); }
+
+  .feedback-box {
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    margin-bottom: 16px;
+    display: none;
+  }
+  .feedback-box.correct { background: rgba(0,200,150,0.12); border: 1px solid var(--correct); color: var(--correct); }
+  .feedback-box.wrong { background: rgba(255,71,87,0.12); border: 1px solid var(--wrong); color: var(--wrong); }
+  .feedback-box.show { display: block; }
+
+  .next-btn {
+    width: 100%;
+    padding: 14px;
+    border-radius: 10px;
+    border: 1.5px solid var(--teal);
+    background: transparent;
+    color: var(--teal);
+    font-family: 'Orbitron', monospace;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-transform: uppercase;
+    display: none;
+  }
+  .next-btn.show { display: block; }
+  .next-btn:hover { background: var(--teal-dim); }
+
+  /* Timer */
+  .timer-ring {
+    position: relative;
+    width: 52px;
+    height: 52px;
+  }
+  .timer-ring svg { transform: rotate(-90deg); }
+  .timer-ring .timer-num {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Orbitron', monospace;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--teal);
+  }
+
+  /* ── RESULTS SCREEN ── */
+  .result-card {
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 16px;
+    padding: 36px 28px;
+    text-align: center;
+    margin-bottom: 24px;
+  }
+  .result-emoji { font-size: 56px; margin-bottom: 16px; }
+  .result-title {
+    font-family: 'Orbitron', monospace;
+    font-size: 22px;
+    font-weight: 900;
+    color: var(--teal);
+    margin-bottom: 8px;
+    text-transform: uppercase;
+  }
+  .result-score {
+    font-family: 'Orbitron', monospace;
+    font-size: 52px;
+    font-weight: 900;
+    background: linear-gradient(135deg, var(--teal), var(--blue));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin: 16px 0;
+  }
+  .result-sub { color: var(--muted); font-size: 14px; }
+
+  .stats-row {
+    display: flex;
+    justify-content: center;
+    gap: 24px;
+    margin-top: 20px;
+  }
+  .stat-item { text-align: center; }
+  .stat-val { font-family: 'Orbitron', monospace; font-size: 22px; font-weight: 700; }
+  .stat-val.green { color: var(--correct); }
+  .stat-val.red { color: var(--wrong); }
+  .stat-label { font-size: 11px; color: var(--muted); margin-top: 4px; letter-spacing: 1px; text-transform: uppercase; }
+
+  .review-list { margin-bottom: 24px; }
+  .review-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin-bottom: 8px;
+    text-align: left;
+  }
+  .review-item .ri-q { font-size: 13px; color: var(--text); margin-bottom: 6px; font-weight: 500; }
+  .review-item .ri-a { font-size: 12px; }
+  .ri-correct { color: var(--correct); }
+  .ri-wrong { color: var(--wrong); }
+
+  .btn-outline {
+    width: 100%;
+    padding: 14px;
+    border-radius: 10px;
+    border: 1.5px solid var(--border);
+    background: transparent;
+    color: var(--muted);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-top: 10px;
+  }
+  .btn-outline:hover { border-color: var(--text); color: var(--text); }
+
+  .section-label {
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 12px;
+    font-weight: 600;
+  }
+
+  @media (max-width: 480px) {
+    .options-grid { grid-template-columns: 1fr; }
+    .category-grid { grid-template-columns: 1fr 1fr; }
+    .mode-row { flex-wrap: wrap; }
+    .mode-btn { min-width: calc(50% - 5px); }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- ══ START SCREEN ══ -->
+  <div class="screen active" id="startScreen">
+    <div class="brand">
+      <div class="task-tag">Task 03</div>
+      <h1>Quiz Game<br>Application</h1>
+      <p>Displays questions · Collects answers · Scores at the end</p>
+    </div>
+
+    <div class="section-label">Choose a Category</div>
+    <div class="category-grid" id="categoryGrid">
+      <div class="cat-card selected" data-cat="general" onclick="selectCat(this)">
+        <div class="icon">🌍</div>
+        <div class="name">General Knowledge</div>
+        <div class="count">6 questions</div>
+      </div>
+      <div class="cat-card" data-cat="science" onclick="selectCat(this)">
+        <div class="icon">🔬</div>
+        <div class="name">Science</div>
+        <div class="count">6 questions</div>
+      </div>
+      <div class="cat-card" data-cat="tech" onclick="selectCat(this)">
+        <div class="icon">💻</div>
+        <div class="name">Technology</div>
+        <div class="count">6 questions</div>
+      </div>
+      <div class="cat-card" data-cat="history" onclick="selectCat(this)">
+        <div class="icon">🏛️</div>
+        <div class="name">History</div>
+        <div class="count">6 questions</div>
+      </div>
+    </div>
+
+    <div class="section-label">Question Mode</div>
+    <div class="mode-row" id="modeRow">
+      <div class="mode-btn selected" data-mode="mixed" onclick="selectMode(this)">🎲 Mixed</div>
+      <div class="mode-btn" data-mode="mcq" onclick="selectMode(this)">⚪ Single Select</div>
+      <div class="mode-btn" data-mode="multi" onclick="selectMode(this)">☑️ Multi Select</div>
+      <div class="mode-btn" data-mode="fill" onclick="selectMode(this)">✏️ Fill Blank</div>
+    </div>
+
+    <button class="btn-primary" onclick="startQuiz()">START QUIZ</button>
+  </div>
+
+  <!-- ══ QUIZ SCREEN ══ -->
+  <div class="screen" id="quizScreen">
+    <div class="quiz-header">
+      <div>
+        <div class="quiz-meta" id="qCounter">Q 1 / 6</div>
+        <div class="quiz-meta" id="catLabel" style="margin-top:2px;"></div>
+      </div>
+      <div class="timer-ring" id="timerRing">
+        <svg width="52" height="52" viewBox="0 0 52 52">
+          <circle cx="26" cy="26" r="22" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="3"/>
+          <circle id="timerCircle" cx="26" cy="26" r="22" fill="none" stroke="url(#tg)" stroke-width="3"
+            stroke-dasharray="138.2" stroke-dashoffset="0" stroke-linecap="round"/>
+          <defs>
+            <linearGradient id="tg" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stop-color="#00d4aa"/>
+              <stop offset="100%" stop-color="#4a90d9"/>
+            </linearGradient>
+          </defs>
+        </svg>
+        <div class="timer-num" id="timerNum">20</div>
+      </div>
+    </div>
+
+    <div class="progress-bar">
+      <div class="progress-fill" id="progressFill" style="width:0%"></div>
+    </div>
+
+    <div id="qTypeBadge" class="q-type-badge">Multiple Choice</div>
+    <div class="question-text" id="questionText"></div>
+    <div class="q-hint" id="qHint"></div>
+
+    <!-- MCQ / Multi-select options -->
+    <div class="options-grid" id="optionsGrid"></div>
+
+    <!-- Fill in blank -->
+    <input type="text" class="fill-input" id="fillInput" placeholder="Type your answer…" style="display:none"
+      onkeydown="if(event.key==='Enter') submitFill()"/>
+
+    <div class="feedback-box" id="feedbackBox"></div>
+
+    <div style="display:flex;gap:10px;">
+      <button class="btn-primary" id="submitMultiBtn" style="display:none;flex:1;" onclick="submitMulti()">SUBMIT</button>
+      <button class="btn-primary" id="submitFillBtn" style="display:none;flex:1;" onclick="submitFill()">CHECK</button>
+    </div>
+
+    <button class="next-btn" id="nextBtn" onclick="nextQuestion()">NEXT QUESTION →</button>
+  </div>
+
+  <!-- ══ RESULTS SCREEN ══ -->
+  <div class="screen" id="resultsScreen">
+    <div class="result-card">
+      <div class="result-emoji" id="resultEmoji">🏆</div>
+      <div class="result-title" id="resultTitle">Quiz Complete!</div>
+      <div class="result-score" id="resultScore">0%</div>
+      <div class="result-sub" id="resultSub"></div>
+      <div class="stats-row">
+        <div class="stat-item">
+          <div class="stat-val green" id="statCorrect">0</div>
+          <div class="stat-label">Correct</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-val red" id="statWrong">0</div>
+          <div class="stat-label">Wrong</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-val" style="color:var(--gold)" id="statTime">0s</div>
+          <div class="stat-label">Avg Time</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-label">Review Answers</div>
+    <div class="review-list" id="reviewList"></div>
+
+    <button class="btn-primary" onclick="restartQuiz()">PLAY AGAIN</button>
+    <button class="btn-outline" onclick="goHome()">CHANGE CATEGORY</button>
+  </div>
+</div>
+
+<script>
+// ── QUESTION BANK ──
+const QB = {
+  general: [
+    { type:'mcq', q:'What is the capital of Australia?', opts:['Sydney','Melbourne','Canberra','Perth'], ans:[2] },
+    { type:'multi', q:'Which of these are continents?', opts:['Africa','India','Europe','Arabia'], ans:[0,2], hint:'Select all that apply.' },
+    { type:'fill', q:'The Great Wall of China was built to protect against invasions from the _____.', ans:['north','mongols','northern tribes'], hint:'Type any accepted answer.' },
+    { type:'mcq', q:'How many sides does a hexagon have?', opts:['5','6','7','8'], ans:[1] },
+    { type:'multi', q:'Which are primary colours (in painting)?', opts:['Red','Green','Blue','Yellow'], ans:[0,2,3] },
+    { type:'fill', q:'The chemical symbol for gold is _____.', ans:['au'], hint:'Two-letter element symbol.' },
+  ],
+  science: [
+    { type:'mcq', q:'What is the powerhouse of the cell?', opts:['Nucleus','Ribosome','Mitochondria','Golgi body'], ans:[2] },
+    { type:'fill', q:'Water is made of hydrogen and _____.', ans:['oxygen','o'], hint:'Complete the molecule name.' },
+    { type:'mcq', q:'What planet is known as the Red Planet?', opts:['Venus','Jupiter','Mars','Saturn'], ans:[2] },
+    { type:'multi', q:'Which of these are states of matter?', opts:['Solid','Plasma','Liquid','Energy'], ans:[0,1,2] },
+    { type:'mcq', q:'What is the speed of light (approx.) in km/s?', opts:['300,000','150,000','450,000','100,000'], ans:[0] },
+    { type:'fill', q:'The study of living organisms is called _____.', ans:['biology'], hint:'Think life sciences.' },
+  ],
+  tech: [
+    { type:'mcq', q:'What does "CPU" stand for?', opts:['Central Processing Unit','Computer Power Unit','Core Processor Utility','Central Program Unit'], ans:[0] },
+    { type:'fill', q:'HTML stands for HyperText _____ Language.', ans:['markup'], hint:'It structures web pages.' },
+    { type:'multi', q:'Which are programming languages?', opts:['Python','HTML','Java','CSS'], ans:[0,2], hint:'HTML and CSS are markup/style.' },
+    { type:'mcq', q:'What does "HTTP" stand for in a web address?', opts:['HyperText Transfer Protocol','High Tech Transfer Process','HyperText Type Protocol','Home Transfer Technology'], ans:[0] },
+    { type:'mcq', q:'Which company created the Python programming language?', opts:['Google','Microsoft','Guido van Rossum (independent)','Apple'], ans:[2] },
+    { type:'fill', q:'The shortcut to copy text is Ctrl + _____.', ans:['c'], hint:'Single letter.' },
+  ],
+  history: [
+    { type:'mcq', q:'In which year did World War II end?', opts:['1943','1944','1945','1946'], ans:[2] },
+    { type:'fill', q:'The ancient wonder, the Great Pyramid, is located in _____.', ans:['egypt','giza','cairo'], hint:'Country or city accepted.' },
+    { type:'mcq', q:'Who was the first person to walk on the moon?', opts:['Buzz Aldrin','Yuri Gagarin','Neil Armstrong','John Glenn'], ans:[2] },
+    { type:'multi', q:'Which were Allied powers in WWII?', opts:['USA','Germany','UK','Japan'], ans:[0,2] },
+    { type:'mcq', q:'The Renaissance began in which country?', opts:['France','England','Italy','Spain'], ans:[2] },
+    { type:'fill', q:'The Berlin Wall fell in _____.', ans:['1989'], hint:'Enter the year.' },
+  ],
+};
+
+// ── STATE ──
+let selectedCat = 'general';
+let selectedMode = 'mixed';
+let questions = [];
+let currentQ = 0;
+let score = 0;
+let correctCount = 0;
+let wrongCount = 0;
+let userAnswers = [];
+let timerInterval = null;
+let timeLeft = 20;
+let timeTaken = 0;
+let totalTime = 0;
+let selectedOptions = new Set();
+let answered = false;
+
+// ── UI HELPERS ──
+function selectCat(el) {
+  document.querySelectorAll('.cat-card').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedCat = el.dataset.cat;
+}
+function selectMode(el) {
+  document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedMode = el.dataset.mode;
+}
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+// ── QUIZ LOGIC ──
+function startQuiz() {
+  questions = [...QB[selectedCat]];
+  // Filter by mode if not mixed
+  if (selectedMode !== 'mixed') {
+    questions = questions.filter(q => q.type === selectedMode);
+    if (questions.length === 0) questions = [...QB[selectedCat]]; // fallback
+  }
+  // Shuffle
+  questions.sort(() => Math.random() - 0.5);
+  currentQ = 0; score = 0; correctCount = 0; wrongCount = 0;
+  userAnswers = []; totalTime = 0;
+  showScreen('quizScreen');
+  loadQuestion();
+}
+
+function loadQuestion() {
+  const q = questions[currentQ];
+  answered = false;
+  selectedOptions = new Set();
+  timeTaken = 0;
+
+  // Update header
+  document.getElementById('qCounter').textContent = `Q ${currentQ+1} / ${questions.length}`;
+  document.getElementById('catLabel').textContent = selectedCat.toUpperCase();
+  document.getElementById('progressFill').style.width = `${(currentQ/questions.length)*100}%`;
+
+  // Badge
+  const badges = { mcq:'⚪ Single Select', multi:'☑️ Multi Select', fill:'✏️ Fill in the Blank' };
+  document.getElementById('qTypeBadge').textContent = badges[q.type];
+
+  document.getElementById('questionText').textContent = q.q;
+  document.getElementById('qHint').textContent = q.hint || '';
+
+  // Reset UI
+  document.getElementById('feedbackBox').className = 'feedback-box';
+  document.getElementById('nextBtn').className = 'next-btn';
+  document.getElementById('fillInput').style.display = 'none';
+  document.getElementById('fillInput').value = '';
+  document.getElementById('fillInput').className = 'fill-input';
+  document.getElementById('fillInput').disabled = false;
+  document.getElementById('submitMultiBtn').style.display = 'none';
+  document.getElementById('submitFillBtn').style.display = 'none';
+  document.getElementById('optionsGrid').innerHTML = '';
+  document.getElementById('optionsGrid').style.display = 'grid';
+
+  if (q.type === 'mcq') {
+    renderMCQ(q);
+  } else if (q.type === 'multi') {
+    renderMulti(q);
+  } else {
+    renderFill();
+  }
+
+  startTimer();
+}
+
+function renderMCQ(q) {
+  const grid = document.getElementById('optionsGrid');
+  q.opts.forEach((opt, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'option-btn';
+    btn.textContent = opt;
+    btn.onclick = () => answerMCQ(i, q, btn);
+    grid.appendChild(btn);
+  });
+}
+
+function renderMulti(q) {
+  const grid = document.getElementById('optionsGrid');
+  q.opts.forEach((opt, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'option-btn';
+    btn.textContent = '☐  ' + opt;
+    btn.onclick = () => toggleMulti(i, btn);
+    grid.appendChild(btn);
+  });
+  document.getElementById('submitMultiBtn').style.display = 'block';
+}
+
+function renderFill() {
+  document.getElementById('optionsGrid').style.display = 'none';
+  document.getElementById('fillInput').style.display = 'block';
+  document.getElementById('submitFillBtn').style.display = 'block';
+  setTimeout(() => document.getElementById('fillInput').focus(), 100);
+}
+
+function toggleMulti(i, btn) {
+  if (answered) return;
+  if (selectedOptions.has(i)) {
+    selectedOptions.delete(i);
+    btn.classList.remove('selected');
+    btn.textContent = '☐  ' + questions[currentQ].opts[i];
+  } else {
+    selectedOptions.add(i);
+    btn.classList.add('selected');
+    btn.textContent = '☑  ' + questions[currentQ].opts[i];
+  }
+}
+
+function answerMCQ(chosen, q, btn) {
+  if (answered) return;
+  answered = true;
+  stopTimer();
+  const correct = q.ans[0] === chosen;
+  const allBtns = document.querySelectorAll('.option-btn');
+  allBtns.forEach((b, i) => {
+    b.disabled = true;
+    if (i === q.ans[0]) b.classList.add('correct');
+    else if (i === chosen && !correct) b.classList.add('wrong');
+  });
+  recordAnswer(correct, q, [chosen]);
+  showFeedback(correct, q);
+}
+
+function submitMulti() {
+  if (answered) return;
+  answered = true;
+  stopTimer();
+  const q = questions[currentQ];
+  const chosen = [...selectedOptions].sort();
+  const correct = JSON.stringify(chosen) === JSON.stringify([...q.ans].sort());
+  const allBtns = document.querySelectorAll('.option-btn');
+  allBtns.forEach((b, i) => {
+    b.disabled = true;
+    if (q.ans.includes(i)) b.classList.add('correct');
+    else if (selectedOptions.has(i) && !q.ans.includes(i)) b.classList.add('wrong');
+  });
+  document.getElementById('submitMultiBtn').style.display = 'none';
+  recordAnswer(correct, q, chosen);
+  showFeedback(correct, q);
+}
+
+function submitFill() {
+  if (answered) return;
+  answered = true;
+  stopTimer();
+  const q = questions[currentQ];
+  const val = document.getElementById('fillInput').value.trim().toLowerCase();
+  const correct = q.ans.some(a => a.toLowerCase() === val);
+  const inp = document.getElementById('fillInput');
+  inp.disabled = true;
+  inp.classList.add(correct ? 'correct' : 'wrong');
+  document.getElementById('submitFillBtn').style.display = 'none';
+  recordAnswer(correct, q, [val]);
+  showFeedback(correct, q);
+}
+
+function showFeedback(correct, q) {
+  const fb = document.getElementById('feedbackBox');
+  if (correct) {
+    fb.textContent = '✅ Correct! Well done.';
+    fb.className = 'feedback-box correct show';
+  } else {
+    const rightAns = q.type === 'fill' ? q.ans[0] : q.opts[q.ans[0]];
+    fb.textContent = `❌ Wrong! Correct answer: ${rightAns}`;
+    fb.className = 'feedback-box wrong show';
+  }
+  document.getElementById('nextBtn').className = 'next-btn show';
+}
+
+function recordAnswer(correct, q, chosen) {
+  if (correct) { score += 10; correctCount++; } else { wrongCount++; }
+  totalTime += (20 - timeLeft);
+  userAnswers.push({ q: q.q, correct, type: q.type,
+    chosenText: q.type==='fill' ? chosen[0] :
+      q.type==='mcq' ? q.opts[chosen[0]] :
+      chosen.map(c => q.opts[c]).join(', '),
+    answerText: q.type==='fill' ? q.ans[0] : q.ans.map(a=>q.opts[a]).join(', ')
+  });
+}
+
+function nextQuestion() {
+  currentQ++;
+  if (currentQ >= questions.length) {
+    showResults();
+  } else {
+    loadQuestion();
+  }
+}
+
+// ── TIMER ──
+function startTimer() {
+  timeLeft = 20;
+  updateTimerUI();
+  clearInterval(timerInterval);
+  timerInterval = setInterval(() => {
+    timeLeft--;
+    updateTimerUI();
+    if (timeLeft <= 0) {
+      clearInterval(timerInterval);
+      if (!answered) timeUp();
+    }
+  }, 1000);
+}
+function stopTimer() { clearInterval(timerInterval); }
+function updateTimerUI() {
+  document.getElementById('timerNum').textContent = timeLeft;
+  const pct = timeLeft / 20;
+  const circ = 138.2;
+  document.getElementById('timerCircle').style.strokeDashoffset = circ * (1 - pct);
+  document.getElementById('timerNum').style.color = timeLeft <= 5 ? 'var(--red)' : 'var(--teal)';
+}
+function timeUp() {
+  answered = true;
+  const q = questions[currentQ];
+  recordAnswer(false, q, []);
+  const fb = document.getElementById('feedbackBox');
+  const rightAns = q.type==='fill' ? q.ans[0] : q.opts[q.ans[0]];
+  fb.textContent = `⏰ Time's up! Answer: ${rightAns}`;
+  fb.className = 'feedback-box wrong show';
+  document.getElementById('nextBtn').className = 'next-btn show';
+  document.querySelectorAll('.option-btn').forEach(b => b.disabled = true);
+  document.getElementById('fillInput').disabled = true;
+  document.getElementById('submitMultiBtn').style.display = 'none';
+  document.getElementById('submitFillBtn').style.display = 'none';
+}
+
+// ── RESULTS ──
+function showResults() {
+  stopTimer();
+  const total = questions.length;
+  const pct = Math.round((correctCount / total) * 100);
+  const emojis = pct >= 80 ? '🏆' : pct >= 60 ? '🎯' : pct >= 40 ? '📚' : '💪';
+  const titles = pct >= 80 ? 'Excellent!' : pct >= 60 ? 'Great Job!' : pct >= 40 ? 'Keep Learning!' : 'Try Again!';
+  document.getElementById('resultEmoji').textContent = emojis;
+  document.getElementById('resultTitle').textContent = titles;
+  document.getElementById('resultScore').textContent = pct + '%';
+  document.getElementById('resultSub').textContent = `${correctCount} out of ${total} correct`;
+  document.getElementById('statCorrect').textContent = correctCount;
+  document.getElementById('statWrong').textContent = wrongCount;
+  document.getElementById('statTime').textContent = Math.round(totalTime/total) + 's';
+
+  const list = document.getElementById('reviewList');
+  list.innerHTML = '';
+  userAnswers.forEach((ua, i) => {
+    const div = document.createElement('div');
+    div.className = 'review-item';
+    div.innerHTML = `<div class="ri-q">${i+1}. ${ua.q}</div>
+      <div class="ri-a ${ua.correct ? 'ri-correct' : 'ri-wrong'}">
+        ${ua.correct ? '✅' : '❌'} Your answer: <strong>${ua.chosenText || '(no answer)'}</strong>
+        ${!ua.correct ? ` &nbsp;|&nbsp; Correct: <strong>${ua.answerText}</strong>` : ''}
+      </div>`;
+    list.appendChild(div);
+  });
+
+  showScreen('resultsScreen');
+}
+
+function restartQuiz() { startQuiz(); }
+function goHome() { showScreen('startScreen'); }
+</script>
+</body>
+</html>
